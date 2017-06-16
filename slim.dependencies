@@ -1,0 +1,20 @@
+[
+  {
+    "remote": "github",
+    "repository": "MichaelAkhnoukh/android_device_sony_msm8974-common",
+    "target_path": "device/sony/msm8974-common",
+    "revision": "ng7.1"
+  },
+  {
+    "remote": "github",
+    "repository": "Sony-Stock-CM/android_kernel_sony_msm8974",
+    "target_path": "kernel/sony/msm8974",
+    "revision": "cm-14.1"
+  },
+  {
+    "remote": "github",
+    "repository": "Sony-Stock-CM/android_hardware_broadcom_fm",
+    "target_path": "hardware/broadcom/fm",
+    "revision": "cm-14.1"
+  }
+]
