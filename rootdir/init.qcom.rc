@@ -15,9 +15,10 @@
 # limitations under the License.
 #
 
-import /init.device.rc
-import /init.sony.usb.rc
 import /init.qcom.power.rc
+import /init.sony.rc
+import /init.sony.usb.rc
+import /init.platform-common.rc
 import /init.camera.rc
 
 on early-init
@@ -51,13 +52,13 @@ on init
 
     # Bluetooth address setting
     setprop ro.bt.bdaddr_path "/data/etc/bluetooth_bdaddr"
-    chown bluetooth bluetooth ${ro.bt.bdaddr_path}
+    chown bluetooth bluetooth ro.bt.bdaddr_path
 
+    #Enable Bluetooth HFP 1.6
     setprop ro.bluetooth.hfp.ver 1.6
+
+    #Disable Bluetooth A2DP SNK
     setprop bluetooth.a2dp.sink.enabled false
-    setprop bluetooth.enable_timeout_ms 12000
-    chown bluetooth net_bt_admin /proc/bluetooth/wakeup/proto
-    chmod 0664 /proc/bluetooth/wakeup/proto
 
     write /sys/module/qpnp_rtc/parameters/poweron_alarm 1
 
@@ -110,8 +111,8 @@ on boot
     chown bluetooth net_bt_stack /proc/bluetooth/sleep/lpm
     chown bluetooth net_bt_stack /proc/bluetooth/sleep/btwrite
 
-    # BT DUN port-bridge		
-    chmod 0660 /dev/smd7		
+    # BT DUN port-bridge
+    chmod 0660 /dev/smd7
     chown bluetooth bluetooth /dev/smd7
 
     chmod 0660 /sys/class/rfkill/rfkill0/state
@@ -136,9 +137,13 @@ on boot
     mkdir /data/system/perfd 0770 root system
     chmod 2770 /data/system/perfd
 
-	#Create NETMGR daemon socket area
-	mkdir /dev/socket/netmgr 0750 radio radio
+    #Create NETMGR daemon socket area
+    mkdir /dev/socket/netmgr 0750 radio radio
 
+    # Wlan Interface Port
+    setprop wifi.interface wlan0
+
+    # Send single UNSOL_CALL_RING notification
     setprop ro.telephony.call_ring.multiple false
 
     # port-bridge
@@ -216,9 +221,6 @@ on boot
     chmod 660 /dev/rtc0
     chown system system /dev/rtc0
 
-    # Enable DEBUG_SUSPEND, DEBUG_EXIT_SUSPEND, and DEBUG_WAKEUP
-    write /sys/module/wakelock/parameters/debug_mask 7
-
     # To allow interfaces to get v6 address when tethering is enabled
     write /proc/sys/net/ipv6/conf/rmnet0/accept_ra 2
     write /proc/sys/net/ipv6/conf/rmnet1/accept_ra 2
@@ -260,8 +262,6 @@ on boot
     chmod 0660 /sys/devices/virtual/graphics/fb0/rgb
 
 on post-fs
-    write /sys/class/power_supply/battery/shutdown_at_low_batt 1
-
     # Change to socket location on libkeyctrl/suntory for /data encryption
     # Create suntory data directory
     mkdir /dev/socket/suntory 0755 system system
@@ -287,21 +287,7 @@ on post-fs
     chown system system /sys/class/leds/led:rgb_blue/pause_hi_multi
 
 on post-fs-data
-    # create directory for DRM plug-ins - give drm the read/write access to
-    # the following directory.
-    mkdir /data/drm 0770 drm drm
-
-    # create directory for MediaDrm plug-ins - give drm the read/write access to
-    # the following directory.
-    mkdir /data/mediadrm 0770 mediadrm mediadrm
-
-
-    # Create the directories used by the Wireless subsystem
-    mkdir /data/misc/wifi 0770 wifi wifi
-    mkdir /data/misc/wifi/sockets 0770 wifi wifi
-    mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
-    mkdir /data/misc/dhcp 0770 dhcp dhcp
-    # to observe dnsmasq.leases file for dhcp information of soft ap.
+    # Observe dnsmasq.leases file for dhcp information of soft ap.
     chown dhcp dhcp /data/misc/dhcp
 
     mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
@@ -329,7 +315,6 @@ on post-fs-data
     mkdir /data/nfc/param 0770 nfc nfc
 
     # QCOM Sensors
-    mkdir /data/system 0775 system system
     mkdir /data/system/sensors 0775 system system
     mkdir /data/misc/sensors 0775 system system
     write /data/system/sensors/settings 1
@@ -387,11 +372,6 @@ on post-fs-data
     mkdir /data/pc 0600 radio radio
     mkdir /cache/pc 0770 radio system
 
-    exec u:r:qti_init_shell:s0 -- /system/bin/rm -r /idd/lost+found
-    mkdir /idd/lost+found 0770 root root
-    mkdir /idd/output 0755 idd idd
-    mkdir /idd/socket 0711 idd idd
-    restorecon_recursive /idd
     start wvkbd_installer
 
 on property:bluetooth.isEnabled=true
@@ -455,20 +435,21 @@ on property:ro.data.large_tcp_window_size=true
     # Adjust socket buffer to enlarge TCP receive window for high bandwidth (e.g. DO-RevB)
     write /proc/sys/net/ipv4/tcp_adv_win_scale 2
 
+service ril-daemon2 /system/bin/rild -c 2
+    class late_start
+    socket rild2 stream 660 root radio
+    socket rild-debug2 stream 660 radio system
+    user root
+    disabled
+    group radio cache inet misc audio sdcard_r sdcard_rw qcom_diag log
+
+on property:persist.radio.multisim.config=dsds
+    start ril-daemon2
+
 service loc_launcher /system/bin/loc_launcher
     #loc_launcher will start as root and set its uid to gps
     class late_start
     group gps inet net_raw qcom_diag net_admin wifi
-
-service scdnotifier_nitz /system/bin/scdnotifier nitz
-    class main
-    user system
-    group system
-    oneshot
-    disabled
-
-on property:gsm.nitz.time=*
-    start scdnotifier_nitz
 
 # Start suntrold
 service suntrold /system/bin/suntrold
@@ -510,19 +491,18 @@ service qcom-sensor-sh /system/bin/sh /system/etc/init.qcom-sensor.sh
 
 service time_daemon /system/bin/time_daemon
     class late_start
-    user root
-    group root radio qcom_diag
+    user root radio
+    group root
+
+# HexagonDSP FastRPC daemon
+service adsprpcd /system/bin/adsprpcd
+   class main
+   user media
+   group media
 
 service charger /sbin/healthd -c
     class charger
     seclabel u:r:healthd:s0
-
-service tfa9890_amp /system/bin/tfa9890_amp
-    class main
-    user media
-    group audio
-    oneshot
-    ioprio rt 4
 
 service audiod /system/bin/audiod
     class late_start
@@ -549,12 +529,17 @@ service media /system/bin/mediaserver
     group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc mediadrm credmgr_client system
     ioprio rt 4
 
-
 service mediadrm /system/bin/mediadrmserver
     class main
     user media
     group mediadrm drmrpc trimarea
     ioprio rt 4
+
+service mpdecision /system/bin/mpdecision --avg_comp
+    class main
+    user root
+    group root readproc
+    disabled
 
 # brcm-uim-sysfs (BT/FM/ANT+)
  service uim /system/bin/brcm-uim-sysfs
@@ -562,34 +547,3 @@ service mediadrm /system/bin/mediadrmserver
     user root
     group bluetooth net_bt_admin net_bt
     seclabel u:r:uim:s0
-
-service imsqmidaemon /system/bin/imsqmidaemon
-    class late_start
-    user system
-    socket ims_qmid stream 0660 system radio
-    group radio net_raw log qcom_diag
-
-service imsdatadaemon /system/bin/imsdatadaemon
-    user system
-    socket ims_datad stream 0660 system radio
-    group system wifi radio inet net_raw log qcom_diag net_admin
-    disabled
-
-on property:sys.ims.DATA_DAEMON_STATUS=1
-   start ims_rtp_daemon
-   start imscmservice
-
-
-service ims_rtp_daemon /system/bin/ims_rtp_daemon
-   user system
-   socket ims_rtpd stream 0660 system radio
-   group radio net_raw diag qcom_diag log inet
-   disabled
-
-service imscmservice /system/bin/imscmservice
-   user system
-   group radio net_raw diag qcom_diag log
-   disabled
-
-on property:sys.ims.QMI_DAEMON_STATUS=1
-    start imsdatadaemon

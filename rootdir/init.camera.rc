@@ -16,29 +16,16 @@
 
 on init
 	export LD_SHIM_LIBS " \
-/system/vendor/lib/libwvm.so|libshims_wvm.so \
-:/system/bin/credmgrd|libshims_signal.so \
+/system/bin/credmgrd|libshims_signal.so \
 :/system/bin/iddd|libshims_idd.so \
 :/system/bin/suntrold|libshims_signal.so \
-:/system/vendor/lib/libwvm.so|libdtcpipplayer.so \
+:/system/lib/hw/camera.qcom.so|libsonycamera.so \
 "
-
-	mkdir /idd 0751 idd idd
-	mkdir /rca 0750 idd idd
 
 on early-fs
     wait /dev/block/mmcblk0p1
     class_start trimarea
     exec u:r:qti_init_shell:s0 -- /sbin/wait4tad_static
-
-on fs
-    # mount apps_log
-    #wait /dev/block/platform/msm_sdcc.1/by-name/apps_log
-    #mount ext4 /dev/block/platform/msm_sdcc.1/by-name/apps_log /idd nosuid nodev noatime noexec barrier=0 discard
-    chown idd idd /idd
-    chmod 0751 /idd
-    #exec /system/bin/rm -r /idd/lost+found
-    symlink /idd /mnt/idd
 
 on early-boot
     #SONY early boot
@@ -47,19 +34,19 @@ on early-boot
 
 on boot
     # PM8941 flash
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/current1
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/current2
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/fault_status
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/fine_current1
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/fine_current2
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/flash_timer
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/mask_clamp_current
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/mask_enable
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/max_current
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/mode
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/startup_delay
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/strobe
-    chown cameraserver system /sys/class/misc/pm8941-flash/device/vph_pwr_droop
+    chown media system /sys/class/misc/pm8941-flash/device/current1
+    chown media system /sys/class/misc/pm8941-flash/device/current2
+    chown media system /sys/class/misc/pm8941-flash/device/fault_status
+    chown media system /sys/class/misc/pm8941-flash/device/fine_current1
+    chown media system /sys/class/misc/pm8941-flash/device/fine_current2
+    chown media system /sys/class/misc/pm8941-flash/device/flash_timer
+    chown media system /sys/class/misc/pm8941-flash/device/mask_clamp_current
+    chown media system /sys/class/misc/pm8941-flash/device/mask_enable
+    chown media system /sys/class/misc/pm8941-flash/device/max_current
+    chown media system /sys/class/misc/pm8941-flash/device/mode
+    chown media system /sys/class/misc/pm8941-flash/device/startup_delay
+    chown media system /sys/class/misc/pm8941-flash/device/strobe
+    chown media system /sys/class/misc/pm8941-flash/device/vph_pwr_droop
 
 on post-fs
      # we will remap this as /mnt/sdcard with the sdcard fuse tool
@@ -75,22 +62,8 @@ on post-fs-data
     mkdir /data/etc 0755 root shell
     exec -- /system/bin/taimport
 
-    mkdir /data/media 0770 media_rw media_rw
-
     # SONY: Create dir for Widevine keybox
     mkdir /data/persist/wv 0700 system system
-
-    mkdir /data/misc/systemkeys 0700 system system
-    mkdir /data/misc/keystore 0700 keystore keystore
-    mkdir /data/misc/keychain 0771 system system
-    installkey /data
-
-    mkdir /idd/lost+found 0770 root root
-    mkdir /idd/output 0755 idd idd
-    mkdir /idd/socket 0711 idd idd
-    mkdir /idd/startup-prober 0700 root root
-
-    restorecon_recursive /idd
 
     # SONY: Camera
     mkdir /data/camera 0770 media camera
@@ -113,11 +86,6 @@ service taimport /system/bin/taimport
     user root
     group system
     oneshot
-
-service iddd /system/bin/iddd
-    class main
-    user idd
-    group idd log inet
 
 # This script init /cache/CredentialManagerData if /data/credmgr doesn't meet our requirements
 service initcredmgr /system/bin/credmgrfirstboot.sh

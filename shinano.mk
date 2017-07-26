@@ -42,18 +42,22 @@ PRODUCT_COPY_FILES += \
     $(COMMON_PATH)/rootdir/fstab.qcom:root/fstab.qcom \
     $(COMMON_PATH)/rootdir/init.qcom.rc:root/init.qcom.rc \
     $(COMMON_PATH)/rootdir/init.camera.rc:root/init.camera.rc \
+    $(COMMON_PATH)/rootdir/init.platform-common.rc:root/init.platform-common.rc \
+    $(COMMON_PATH)/rootdir/init.sony.rc:root/init.sony.rc \
     $(COMMON_PATH)/rootdir/init.qcom.power.rc:root/init.qcom.power.rc \
-    $(COMMON_PATH)/rootdir/init.recovery.qcom.rc:root/init.recovery.qcom.rc \
+    $(COMMON_PATH)/rootdir/init.qcom.power.rc:root/init.recovery.qcom.rc \
     $(COMMON_PATH)/rootdir/init.sony.usb.rc:root/init.sony.usb.rc \
     $(COMMON_PATH)/rootdir/ueventd.qcom.rc:root/ueventd.qcom.rc
 
 # Camera (stock .575 blobs)
 PRODUCT_PACKAGES += \
-	tad_static \
-	wait4tad_static \
-	libshims_wvm \
 	libshims_signal \
-	libshims_idd
+	libshims_idd \
+        libsonycamera
+
+PRODUCT_COPY_FILES += \
+    $(COMMON_PATH)/rootdir/sbin/wait4tad_static:root/sbin/wait4tad_static \
+    $(COMMON_PATH)/rootdir/sbin/tad_static:root/sbin/tad_static
 
 PRODUCT_COPY_FILES += \
     $(COMMON_PATH)/rootdir/system/bin/credmgrfirstboot.sh:system/bin/credmgrfirstboot.sh
@@ -66,11 +70,18 @@ PRODUCT_PACKAGES += \
 
 # Audio
 PRODUCT_COPY_FILES += \
-    $(COMMON_PATH)/audio/audio_platform_info.xml:system/etc/audio_platform_info.xml
+    $(COMMON_PATH)/configs/audio/audio_platform_info.xml:system/etc/audio_platform_info.xml \
+    $(COMMON_PATH)/configs/audio/audio_policy.conf:system/etc/audio_policy.conf \
+    $(COMMON_PATH)/configs/audio/mixer_paths.xml:system/etc/mixer_paths.xml \
+    $(COMMON_PATH)/configs/audio/mixer_paths_auxpcm.xml:system/etc/mixer_paths_auxpcm.xml
 
 PRODUCT_PACKAGES += \
     tfa9890_amp
-    
+
+# Assertive Display
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/ad_calib.cfg:system/etc/ad_calib.cfg
+
 # RIL
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/netmgr_config.xml:system/etc/data/netmgr_config.xml \
@@ -104,13 +115,7 @@ PRODUCT_COPY_FILES += \
     $(COMMON_PATH)/gps/sap.conf:system/etc/sap.conf
 
 PRODUCT_PACKAGES += \
-    com.qualcomm.location \
     gps.msm8974
-
-
-# RQBalance-PowerHAL configuration
-PRODUCT_COPY_FILES += \
-     $(COMMON_PATH)/rootdir/system/etc/rqbalance_config.xml:system/etc/rqbalance_config.xml
 
 # IPC Security Config
 PRODUCT_COPY_FILES += \
@@ -152,7 +157,7 @@ PRODUCT_COPY_FILES += \
     $(COMMON_PATH)/rootdir/system/etc/init.qcom-sensor.sh:system/etc/init.qcom-sensor.sh 
 
 # BCM Wifi
-$(call inherit-product-if-exists, hardware/broadcom/wlan/bcmdhd/config/config-bcm.mk)
+$(call inherit-product-if-exists, hardware/broadcom/wlan/bcmdhd/firmware/bcm4339/device-bcm.mk)
 
 # Include non-opensource parts
 $(call inherit-product, vendor/sony/shinano-common/shinano-common-vendor.mk)
